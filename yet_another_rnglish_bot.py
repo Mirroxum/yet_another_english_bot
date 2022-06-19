@@ -1,17 +1,14 @@
 import logging
 import os
 import sys
-from random import randint
 from http import HTTPStatus
 
 import requests
 from dotenv import load_dotenv
-from pprint import pprint
-from termcolor import colored
-from telegram import ReplyKeyboardMarkup, Bot, TelegramError
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
+from telegram import TelegramError
 
-from self_exception import (KeyMissError, JSONError, TGError,
+from self_exception import (JSONError, TGError,
                            RequestError, HTTPStatusNotOK)
 
 load_dotenv()
@@ -85,18 +82,29 @@ def check_response(response):
 def send_translate_word(update, context):
     """Принимает сообщение.
     Оптравляет найденный вариант перевода"""
+    try:
+        chat = update.effective_chat
+        response = check_response(get_api_answer_search(update.message.text))
+        if not response:
+            context.bot.send_message(chat.id, 'Я не знаю такого слова')
+        else:
+            transcription = response.get('transcription')
+            en_word = response.get('en_word')
+            ru_word = response.get('ru_word')
+            message = f'{en_word} - [{transcription}] - {ru_word}'
+            context.bot.send_photo(chat.id, response.get('image'))
+            context.bot.send_voice(chat.id, response.get('voice'))
+            context.bot.send_message(chat.id, message)
+    except TelegramError as e:
+        raise TGError(
+            f'Cбой при отправке сообщения "{message}" в Telegram.') from e
+
+def wake_up(update, context):
     chat = update.effective_chat
-    response = check_response(get_api_answer_search(update.message.text))
-    if not response:
-        context.bot.send_message(chat.id, 'Я не знаю такого слова')
-    else:
-        transcription = response.get('transcription')
-        en_word = response.get('en_word')
-        ru_word = response.get('ru_word')
-        message = f'{en_word} - [{transcription}] - {ru_word}'
-        context.bot.send_photo(chat.id, response.get('image'))
-        context.bot.send_voice(chat.id, response.get('voice'))
-        context.bot.send_message(chat.id, message)
+    name = update.message.chat.first_name
+    context.bot.send_message(
+        chat_id=chat.id, 
+        text=f'Привет, {name}. Пришли мне незнакомое тебе слово и я попробую его перевести')
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
@@ -109,6 +117,7 @@ def main():
     updater = Updater(token=BOT_TOKEN)
     logger.info('Инициализация прошла успешно')
     try:
+        updater.dispatcher.add_handler(CommandHandler('start', wake_up))
         updater.dispatcher.add_handler(MessageHandler(Filters.text, send_translate_word))
         updater.start_polling(poll_interval=2.0)
         updater.idle()
