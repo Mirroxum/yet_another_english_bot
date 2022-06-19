@@ -9,7 +9,7 @@ from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
 from telegram import TelegramError
 
 from self_exception import (JSONError, TGError,
-                           RequestError, HTTPStatusNotOK)
+                            RequestError, HTTPStatusNotOK)
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ logger.addHandler(handler)
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 URL = 'https://dictionary.skyeng.ru/api/public/v1/words/search'
 URL_MEAN = 'https://dictionary.skyeng.ru/api/public/v1/meanings'
+
 
 def get_api_answer_search(search_word):
     """Делает запрос к API-сервиса.
@@ -54,6 +55,7 @@ def get_api_answer_search(search_word):
         logger.info('Ответ от сервера получен')
         return response_word
 
+
 def check_response(response):
     """Проверяет ответ API на корректность.
     Если ответ API соответствует ожиданиям,
@@ -65,11 +67,13 @@ def check_response(response):
         response_into = response.pop(0)
         response_first_meanings = response_into.get('meanings').pop(0)
         answer = {'id': response_first_meanings.get('id'),
-                'image': 'https:' + response_first_meanings.get('imageUrl'),
-                'voice': response_first_meanings.get('soundUrl'),
-                'transcription': response_first_meanings.get('transcription'),
-                'en_word': response_into.get('text'),
-                'ru_word': response_first_meanings.get('translation').get('text'),}
+                  'image': 'https:' + response_first_meanings.get('imageUrl'),
+                  'voice': response_first_meanings.get('soundUrl'),
+                  'transcription': response_first_meanings.get(
+                    'transcription'),
+                  'en_word': response_into.get('text'),
+                  'ru_word': response_first_meanings.get(
+                    'translation').get('text')}
         if None in answer.values():
             raise IndexError()
         return answer
@@ -78,7 +82,7 @@ def check_response(response):
     except IndexError as e:
         raise IndexError('Ошибка при назначении переменных') from e
 
-    
+
 def send_translate_word(update, context):
     """Принимает сообщение.
     Оптравляет найденный вариант перевода"""
@@ -97,20 +101,26 @@ def send_translate_word(update, context):
             context.bot.send_message(chat.id, message)
     except TelegramError as e:
         raise TGError(
-            f'Cбой при отправке сообщения "{message}" в Telegram.') from e
+            f'Cбой Telegram при отправке сообщения "{message}".') from e
+
 
 def wake_up(update, context):
+    """Стартовая функция. Отправляет сообщение - приветствие"""
     chat = update.effective_chat
     name = update.message.chat.first_name
     context.bot.send_message(
-        chat_id=chat.id, 
-        text=f'Привет, {name}. Пришли мне незнакомое тебе слово и я попробую его перевести')
+        chat_id=chat.id,
+        text=(f'Привет, {name}. Пришли мне незнакомое тебе слово ',
+              'и я попробую его перевести'))
+
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
     return BOT_TOKEN
 
+
 def main():
+    """Основная функцияю"""
     if not check_tokens():
         logger.critical('Отсутствуют обязательные переменные окружения')
         sys.exit('Отсутствуют обязательные переменные окружения')
@@ -118,12 +128,14 @@ def main():
     logger.info('Инициализация прошла успешно')
     try:
         updater.dispatcher.add_handler(CommandHandler('start', wake_up))
-        updater.dispatcher.add_handler(MessageHandler(Filters.text, send_translate_word))
+        updater.dispatcher.add_handler(
+            MessageHandler(Filters.text, send_translate_word))
         updater.start_polling(poll_interval=2.0)
         updater.idle()
     except Exception as error:
         message = (f'Сбой в работе программы. Ошибка:{error}')
         logger.error(message)
+
 
 if __name__ == '__main__':
     main()

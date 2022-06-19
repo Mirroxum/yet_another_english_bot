@@ -1,19 +1,22 @@
-class KeyMissError(Exception):
-    """В ответе отсвутствуют нужные ключи"""
+class JSONError(Exception):
+    """Ошибка обработки JSON."""
+
     pass
 
-class JSONError(Exception):
-    """Ошибка обработки JSON"""
-    pass
 
 class RequestError(Exception):
-    """Ошибка Request"""
+    """Ошибка Request."""
+
     pass
+
 
 class HTTPStatusNotOK(Exception):
-    """API вернул код отличный от 200"""
+    """API вернул код отличный от 200."""
+
     pass
 
+
 class TGError(Exception):
-    """Ошибка пакета python-telegram-bot"""
+    """Ошибка пакета python-telegram-bot."""
+
     pass
