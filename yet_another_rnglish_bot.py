@@ -21,7 +21,6 @@ logger.addHandler(handler)
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 URL = 'https://dictionary.skyeng.ru/api/public/v1/words/search'
-URL_MEAN = 'https://dictionary.skyeng.ru/api/public/v1/meanings'
 
 
 def get_api_answer_search(search_word):
@@ -32,7 +31,7 @@ def get_api_answer_search(search_word):
     try:
         response = requests.get(URL, params={'search': search_word})
         if response.status_code != HTTPStatus.OK:
-            raise ConnectionError(
+            raise HTTPStatusNotOK(
                 f'API вернул код отличный от 200: {response.status_code}!')
         response_word = response.json()
     except HTTPStatusNotOK as e:
