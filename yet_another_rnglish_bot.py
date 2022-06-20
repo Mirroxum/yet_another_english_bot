@@ -56,7 +56,7 @@ def get_api_answer_search(search_word):
         return response_word
 
 
-def check_response(response):
+def check_response(response, seach_word):
     """Проверяет ответ API на корректность.
     Если ответ API соответствует ожиданиям,
     то функция возвращает словарь для вывода.
@@ -66,6 +66,10 @@ def check_response(response):
             return False
         response_into = response.pop(0)
         response_first_meanings = response_into.get('meanings').pop(0)
+        while (response_into.get('text') != seach_word
+               and response_first_meanings.get(
+                'translation').get('text') != seach_word):
+            response_first_meanings = response_into.get('meanings').pop(0) 
         answer = {'id': response_first_meanings.get('id'),
                   'image': 'https:' + response_first_meanings.get('imageUrl'),
                   'voice': response_first_meanings.get('soundUrl'),
@@ -88,7 +92,8 @@ def send_translate_word(update, context):
     Оптравляет найденный вариант перевода"""
     try:
         chat = update.effective_chat
-        response = check_response(get_api_answer_search(update.message.text))
+        response = check_response(get_api_answer_search(
+            update.message.text), update.message.text)
         if not response:
             context.bot.send_message(chat.id, 'Я не знаю такого слова')
         else:
