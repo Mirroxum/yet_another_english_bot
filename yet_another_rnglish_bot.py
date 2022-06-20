@@ -65,9 +65,9 @@ def check_response(response, seach_word):
             return False
         response_into = response.pop(0)
         response_first_meanings = response_into.get('meanings').pop(0)
-        while (response_into.get('text') != seach_word
+        while (response_into.get('text') != seach_word.lower()
                and response_first_meanings.get(
-                'translation').get('text') != seach_word):
+                'translation').get('text') != seach_word.lower()):
             response_first_meanings = response_into.get('meanings').pop(0) 
         answer = {'id': response_first_meanings.get('id'),
                   'image': 'https:' + response_first_meanings.get('imageUrl'),
