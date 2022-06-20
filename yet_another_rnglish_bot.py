@@ -1,5 +1,6 @@
 import logging
 import os
+from pprint import pprint
 import sys
 from http import HTTPStatus
 
@@ -65,10 +66,13 @@ def check_response(response, seach_word):
             return False
         response_into = response.pop(0)
         response_first_meanings = response_into.get('meanings').pop(0)
-        while (response_into.get('text') != seach_word.lower()
-               and response_first_meanings.get(
+        if (response_into.get('text') != seach_word.lower()
+            and response_first_meanings.get(
                 'translation').get('text') != seach_word.lower()):
-            response_first_meanings = response_into.get('meanings').pop(0) 
+            for item in response_into.get('meanings'):
+                if item.get('translation').get('text') == seach_word.lower():
+                    response_first_meanings = item
+                    continue 
         answer = {'id': response_first_meanings.get('id'),
                   'image': 'https:' + response_first_meanings.get('imageUrl'),
                   'voice': response_first_meanings.get('soundUrl'),
