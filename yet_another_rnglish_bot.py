@@ -110,7 +110,7 @@ def wake_up(update, context):
     name = update.message.chat.first_name
     context.bot.send_message(
         chat_id=chat.id,
-        text=(f'Привет, {name}. Пришли мне незнакомое тебе слово ',
+        text=(f'Привет, {name}. Пришли мне незнакомое тебе слово '
               'и я попробую его перевести'))
 
 
