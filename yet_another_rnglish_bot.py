@@ -3,7 +3,8 @@ import os
 import sys
 from http import HTTPStatus
 
-from langdetect import detect
+from langdetect import detect, detect_langs
+from langdetect import DetectorFactory
 import requests
 from dotenv import load_dotenv
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
@@ -12,6 +13,7 @@ from telegram import TelegramError
 from self_exception import (JSONError, TGError,
                             RequestError, HTTPStatusNotOK)
 
+DetectorFactory.seed = 0
 load_dotenv()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -158,10 +160,8 @@ def check_message(update, context):
         lang = detect(update.message.text.strip())
         if lang == 'ru':
             send_translate_sentence(update, context, sl='ru', tl='en')
-        elif lang == 'en':
-            send_translate_sentence(update, context, sl='en', tl='ru')
         else:
-            send_message(update, context, 'Я не знаю этого языка.=(')
+            send_translate_sentence(update, context, sl='en', tl='ru')
 
 
 def main():
