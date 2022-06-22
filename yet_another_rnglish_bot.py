@@ -1,9 +1,9 @@
 import logging
 import os
-from pprint import pprint
 import sys
 from http import HTTPStatus
 
+from langdetect import detect
 import requests
 from dotenv import load_dotenv
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
@@ -21,16 +21,17 @@ handler.setFormatter(logging.Formatter(
 logger.addHandler(handler)
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-URL = 'https://dictionary.skyeng.ru/api/public/v1/words/search'
+URL_SKYENG = 'https://dictionary.skyeng.ru/api/public/v1/words/search'
+URL_GOG_TRANSLATE = 'https://translate.googleapis.com/translate_a/single'
 
 
-def get_api_answer_search(search_word):
+def get_api_answer_search(url, params):
     """Делает запрос к API-сервиса.
     В качестве параметра функция получает слово с для поиска.
     В случае успешного запроса возвращает ответ API, преобразовав его
     из формата JSON к типам данных Python."""
     try:
-        response = requests.get(URL, params={'search': search_word})
+        response = requests.get(url, params=params)
         if response.status_code != HTTPStatus.OK:
             raise HTTPStatusNotOK(
                 f'API вернул код отличный от 200: {response.status_code}!')
@@ -42,18 +43,32 @@ def get_api_answer_search(search_word):
     except ConnectionError as e:
         raise ConnectionError(
             'Произошла ошибка при попытке запроса ',
-            f'к API c параметром: {search_word}') from e
+            f'к API c параметрами: {params}') from e
     except requests.exceptions.JSONDecodeError as e:
         raise JSONError(
             f'Сбой декодирования JSON из ответа: {response} ',
-            f'с параметром: {search_word}') from e
+            f'с параметрами: {params}') from e
     except requests.exceptions.RequestException as e:
         raise RequestError(
             'Ошибка вызванная request. При попытке сделать',
-            f'запрос с параметром: {search_word}') from e
+            f'запрос с параметрами: {params}') from e
     else:
         logger.info('Ответ от сервера получен')
         return response_word
+
+
+def send_message(update, context, text=False, foto=False, voice=False):
+    """Отправляет сообщения в ТГ"""
+    try:
+        chat = update.effective_chat
+        if foto:
+            context.bot.send_photo(chat.id, foto)
+        if voice:
+            context.bot.send_voice(chat.id, voice)
+        if text:
+            context.bot.send_message(chat.id, text)
+    except TelegramError as e:
+        raise TGError('Cбой Telegram при отправке сообщения.') from e
 
 
 def check_response(response, seach_word):
@@ -72,15 +87,15 @@ def check_response(response, seach_word):
             for item in response_into.get('meanings'):
                 if item.get('translation').get('text') == seach_word.lower():
                     response_first_meanings = item
-                    continue 
+                    continue
         answer = {'id': response_first_meanings.get('id'),
                   'image': 'https:' + response_first_meanings.get('imageUrl'),
                   'voice': response_first_meanings.get('soundUrl'),
                   'transcription': response_first_meanings.get(
-                    'transcription'),
-                  'en_word': response_into.get('text'),
-                  'ru_word': response_first_meanings.get(
-                    'translation').get('text')}
+            'transcription'),
+            'en_word': response_into.get('text'),
+            'ru_word': response_first_meanings.get(
+            'translation').get('text')}
         if None in answer.values():
             raise IndexError()
         return answer
@@ -93,38 +108,60 @@ def check_response(response, seach_word):
 def send_translate_word(update, context):
     """Принимает сообщение.
     Оптравляет найденный вариант перевода"""
-    try:
-        chat = update.effective_chat
-        response = check_response(get_api_answer_search(
-            update.message.text), update.message.text)
-        if not response:
-            context.bot.send_message(chat.id, 'Я не знаю такого слова')
-        else:
-            transcription = response.get('transcription')
-            en_word = response.get('en_word')
-            ru_word = response.get('ru_word')
-            message = f'{en_word} - [{transcription}] - {ru_word}'
-            context.bot.send_photo(chat.id, response.get('image'))
-            context.bot.send_voice(chat.id, response.get('voice'))
-            context.bot.send_message(chat.id, message)
-    except TelegramError as e:
-        raise TGError(
-            f'Cбой Telegram при отправке сообщения "{message}".') from e
+    search_word = update.message.text
+    response = check_response(get_api_answer_search(URL_SKYENG,
+                                                    {'search': search_word}), search_word)
+    if not response:
+        send_message(update, context, text='Я не знаю такого слова')
+    else:
+        transcription = response.get('transcription')
+        en_word = response.get('en_word')
+        ru_word = response.get('ru_word')
+        message = f'{en_word} - [{transcription}] - {ru_word}'
+        send_message(update, context,
+                     text=message,
+                     foto=response.get('image'),
+                     voice=response.get('voice'))
+
+
+def send_translate_sentence(update, context, sl='ru', tl='en'):
+    """Переводит текст машинным переводом и отправляет сообщение"""
+    params = {
+        'client': 'gtx',
+        'sl': sl,
+        'tl': tl,
+        'dt': 't',
+        'q': update.message.text}
+    data = get_api_answer_search(URL_GOG_TRANSLATE, params)
+    message = ''.join(proposal[0] for proposal in data[0])
+    send_message(update, context, text=message)
 
 
 def wake_up(update, context):
     """Стартовая функция. Отправляет сообщение - приветствие"""
-    chat = update.effective_chat
     name = update.message.chat.first_name
-    context.bot.send_message(
-        chat_id=chat.id,
-        text=(f'Привет, {name}. Пришли мне незнакомое тебе слово '
-              'и я попробую его перевести'))
+    message = (f'Привет, {name}. Пришли мне незнакомое тебе слово '
+               'или предложение и я попробую его перевести')
+    send_message(update, context, text=message)
 
 
 def check_tokens():
     """Проверяет доступность переменных окружения."""
     return BOT_TOKEN
+
+
+def check_message(update, context):
+    """Проверяем сообщение текст или слово."""
+    if ' ' not in update.message.text.strip():
+        send_translate_word(update, context)
+    else:
+        lang = detect(update.message.text.strip())
+        if lang == 'ru':
+            send_translate_sentence(update, context, sl='ru', tl='en')
+        elif lang == 'en':
+            send_translate_sentence(update, context, sl='en', tl='ru')
+        else:
+            send_message(update, context, 'Я не знаю этого языка.=(')
 
 
 def main():
@@ -137,7 +174,7 @@ def main():
     try:
         updater.dispatcher.add_handler(CommandHandler('start', wake_up))
         updater.dispatcher.add_handler(
-            MessageHandler(Filters.text, send_translate_word))
+            MessageHandler(Filters.text, check_message))
         updater.start_polling(poll_interval=2.0)
         updater.idle()
     except Exception as error:
