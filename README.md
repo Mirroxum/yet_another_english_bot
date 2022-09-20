@@ -28,3 +28,4 @@ pip install -r requirements.txt
 ```
 BOT_TOKEN = "Ваш бот-токен"
 ```
+Запускаем программу
