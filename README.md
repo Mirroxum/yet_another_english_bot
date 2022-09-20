@@ -3,7 +3,7 @@
 Бот-словарь для Telegram. Можно отправить слово или предложение на русском или английском языке. В ответ пришлёт перевод, визуализацию и аудо-файл с произношением.
 
 Потестировать можно в Telegram:
-@yet_another_english_bot
+[@yet_another_english_bot](https://web.telegram.org/k/#@yet_another_english_bot)
 
 ###Установка
 
