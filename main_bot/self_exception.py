@@ -20,3 +20,9 @@ class TGError(Exception):
     """Ошибка пакета python-telegram-bot."""
 
     pass
+
+class DetectError(Exception):
+    """Ошибка при определении языка текста."""
+
+    pass
+

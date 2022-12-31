@@ -3,17 +3,16 @@ import os
 import sys
 from http import HTTPStatus
 
-from langdetect import detect, detect_langs
-from langdetect import DetectorFactory
 import requests
 from dotenv import load_dotenv
 from telegram.ext import Updater, MessageHandler, CommandHandler, Filters
 from telegram import TelegramError
 
 from self_exception import (JSONError, TGError,
-                            RequestError, HTTPStatusNotOK)
+                            RequestError, HTTPStatusNotOK,
+                            DetectError)
+from utils import detect
 
-DetectorFactory.seed = 0
 load_dotenv()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -55,7 +54,7 @@ def get_api_answer_search(url, params):
             'Ошибка вызванная request. При попытке сделать',
             f'запрос с параметрами: {params}') from e
     else:
-        logger.info(f'Ответ от сервера получен.\nЗапрос: {params}.\nОтвет:{response_word}')
+        logger.info('Ответ от сервера получен.')
         return response_word
 
 
@@ -151,17 +150,22 @@ def check_tokens():
     """Проверяет доступность переменных окружения."""
     return BOT_TOKEN
 
-
 def check_message(update, context):
     """Проверяем сообщение текст или слово."""
-    if ' ' not in update.message.text.strip():
+    text = update.message.text.strip()
+    if ' ' not in text:
         send_translate_word(update, context)
     else:
-        lang = detect(update.message.text.strip())
-        if lang == 'ru':
-            send_translate_sentence(update, context, sl='ru', tl='en')
-        else:
-            send_translate_sentence(update, context, sl='en', tl='ru')
+        try:
+            lang = detect(text)
+            if lang == 'ru':
+                send_translate_sentence(update, context, sl='ru', tl='en')
+            elif lang == 'en':
+               send_translate_sentence(update, context, sl='en', tl='ru')
+            else:
+                raise DetectError() 
+        except DetectError as e:
+            raise DetectError(f'Ошибка при определении языка текста. Текст:{text}') from e
 
 
 def main():
