@@ -55,7 +55,7 @@ def get_api_answer_search(url, params):
             'Ошибка вызванная request. При попытке сделать',
             f'запрос с параметрами: {params}') from e
     else:
-        logger.info('Ответ от сервера получен')
+        logger.info(f'Ответ от сервера получен.\nЗапрос: {params}.\nОтвет:{response_word}')
         return response_word
 
 
